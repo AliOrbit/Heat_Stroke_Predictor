@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Heat Stroke Predictor | BLE</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1421;color:#edf4ff;font:16px system-ui;padding:32px}main{max-width:1100px;margin:auto}header{border-bottom:1px solid #2c4058;padding-bottom:24px}h1{direction:ltr;text-align:right;font-size:32px;margin:8px 0}p{color:#acbfd4;line-height:1.8}button{background:#65ead0;color:#09231f;border:0;border-radius:12px;padding:14px 23px;font:700 16px system-ui;cursor:pointer;margin:5px}button:disabled{opacity:.4;cursor:default}#disconnect{background:#283c54;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px;margin:24px 0}.card{background:#132236;border:1px solid #29405a;border-radius:18px;padding:22px}.value{font-size:32px;direction:ltr;text-align:right;margin-top:12px;font-weight:700}.unit,small{color:#a9bbcf;font-size:13px}.risk{border-right:5px solid #65ead0}#state{padding:14px;background:#182c43;border-radius:12px;margin-top:14px}pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#07101c;padding:16px;border-radius:12px;max-height:230px;overflow:auto;font-size:12px}summary{cursor:pointer}footer{color:#93a9c1;font-size:13px;line-height:1.8}@media(max-width:600px){body{padding:16px}h1{font-size:25px}}
+</style><main>
+<header><small>جامعة السلطان قابوس · نموذج أولي · المشروع 93</small><h1>Heat Stroke Predictor</h1><p>مراقبة مباشرة للحساسات عبر Bluetooth LE. البيانات تبقى في هذا المتصفح ولا تُرسل إلى خادم.</p>
+<button id="connect">اتصال بالجهاز</button><button id="disconnect" disabled>قطع الاتصال</button><div id="state" role="status" aria-live="polite">غير متصل — شغّل الجهاز ثم اضغط اتصال.</div></header>
+<section class="grid" id="metrics"></section>
+<section class="card risk"><small>تصنيف الخطر المرسل من الجهاز</small><h2 id="risk">بانتظار البيانات</h2><p id="quality">لا توجد قراءة بعد.</p><small id="sample">—</small></section>
+<p>«غير متاحة» تعني أن الجهاز لم يرسل قيمة صالحة. درجة الحرارة المقدّرة ناتج نموذج الجهاز، وليست قياسًا مباشرًا لحرارة الجسم الداخلية.</p>
+<details><summary>سجل الاتصال والتشخيص</summary><pre id="log"></pre></details>
+<footer>نموذج هندسي تجريبي؛ التصنيف المعروض من برنامج الجهاز، وليس تشخيصًا طبيًا. الصفحة تقرأ البيانات فقط ولا تغيّر إعدادات الجهاز أو التنبيهات.</footer>
+<script>
+'use strict';
+const SERVICE='12345678-1234-5678-1234-56789abc0000';
+const LIVE='12345678-1234-5678-1234-56789abc0002';
+const fields=[
+['raw','حرارة الحساس الخام','°C',12,100,0,true],
+['filtered','حرارة الجسم المفلترة','°C',14,100,1,true],
+['estimated','حرارة الجسم المقدّرة','°C',16,100,2,true],
+['ambient','درجة حرارة البيئة','°C',18,100,3,true],
+['humidity','الرطوبة','%',20,100,4,false],
+['pressure','الضغط الجوي','hPa',22,10,5,false],
+['heat','مؤشر الحرارة','°C',24,100,6,true],
+['hr','معدل نبض القلب','bpm',26,10,7,false],
+['spo2','تشبع الأكسجين SpO₂','%',28,10,8,false]];
+const $=id=>document.getElementById(id);
+$('metrics').innerHTML=fields.map(f=>'<article class="card"><small>'+f[1]+'</small><div class="value" id="'+f[0]+'">—</div><span class="unit">'+f[2]+'</span></article>').join('');
+let device=null,characteristic=null,lastAt=0,lastCounter=null,busy=false,active=false,token=0;
+function log(s){$('log').textContent=(new Date().toLocaleTimeString()+' '+s+'\n'+$('log').textContent).slice(0,12000)}
+function reset(){lastAt=0;lastCounter=null;for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بانتظار بيانات جديدة';$('quality').textContent='لا توجد قراءة حديثة.';$('sample').textContent='—'}
+function decodeLive(v){
+if(v.byteLength!==48)throw Error('حزمة غير متوافقة: '+v.byteLength+' بايت؛ المتوقع 48');
+if(v.getUint8(0)!==1)throw Error('إصدار بروتوكول غير مدعوم: '+v.getUint8(0));
+const flags=v.getUint32(44,true),values={};
+for(const f of fields){const raw=f[6]?v.getInt16(f[3],true):v.getUint16(f[3],true);values[f[0]]=(flags&(1<<f[5]))&&raw!==(f[6]?-32768:65535)?raw/f[4]:null}
+return {values,flags,counter:v.getUint32(4,true),timestamp:v.getUint32(8,true),category:v.getUint8(40),contact:v.getUint8(32),hrReason:v.getUint8(33),spo2Reason:v.getUint8(34),bodyContact:v.getUint8(35),saturation:v.getUint8(42)!==0};
+}
+function receive(v){
+try{
+const d=decodeLive(v);if(d.counter===lastCounter)return;lastCounter=d.counter;lastAt=Date.now();
+for(const f of fields)$(f[0]).textContent=d.values[f[0]]===null?'غير متاحة':d.values[f[0]].toFixed(f[0]==='pressure'||f[0]==='hr'||f[0]==='spo2'?1:2);
+$('state').textContent='متصل — وصلت بيانات من الجهاز';
+const needed=(1<<2)|(1<<6)|(1<<7),complete=(d.flags&needed)===needed&&d.values.estimated!==null&&d.values.heat!==null&&d.values.hr!==null;
+$('risk').textContent=(['طبيعي','متوسط','مرتفع','مرتفع جدًا'][d.category]||'تصنيف غير معروف')+(complete?'':' — مدخلات ناقصة');
+const reasons=['لا يوجد خطأ','لا يوجد تلامس','تلامس ضعيف','عينات غير كافية','إشارة ضعيفة','إشارة مشبعة','إشارة مشوشة','نبضات غير مستقرة','نسبة غير صالحة'];
+$('quality').textContent='تلامس حساس النبض: '+(['غير معروف','لا يوجد','ضعيف','صالح'][d.contact]||'غير معروف')+' | النبض: '+(reasons[d.hrReason]||d.hrReason)+' | الأكسجين: '+(reasons[d.spo2Reason]||d.spo2Reason)+(d.saturation?' | تشبع إشارة الحساس':'');
+$('sample').textContent='العينة '+d.counter+' · زمن الجهاز '+(d.timestamp/1000).toFixed(1)+' ثانية · آخر وصول '+new Date(lastAt).toLocaleTimeString();
+}catch(e){log(e.message);$('state').textContent='متصل لكن البيانات غير متوافقة — راجع سجل التشخيص'}
+}
+function changed(e){receive(e.target.value)}
+function disconnected(){token++;active=false;if(characteristic)characteristic.removeEventListener('characteristicvaluechanged',changed);characteristic=null;reset();$('state').textContent='انقطع الاتصال — أعد الاتصال لتحديث القراءات';$('connect').disabled=false;$('disconnect').disabled=true;log('Disconnected')}
+$('connect').onclick=async()=>{
+if(busy)return;
+if(!navigator.bluetooth||!window.isSecureContext){$('state').textContent='افتح الصفحة في Chrome على هذا الكمبيوتر من localhost أو HTTPS لتفعيل Bluetooth.';return}
+busy=true;const attempt=++token;reset();$('connect').disabled=true;
+try{
+$('state').textContent='اختر HeatStrokeWearable من نافذة Bluetooth';
+device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'HeatStroke'}],optionalServices:[SERVICE]});
+device.removeEventListener('gattserverdisconnected',disconnected);device.addEventListener('gattserverdisconnected',disconnected);
+$('state').textContent='جارٍ فتح اتصال GATT…';
+const server=await device.gatt.connect();log('GATT connected: '+device.name);
+const service=await server.getPrimaryService(SERVICE);
+characteristic=await service.getCharacteristic(LIVE);
+characteristic.addEventListener('characteristicvaluechanged',changed);
+await characteristic.startNotifications();
+if(attempt!==token)throw Error('انقطع الاتصال أثناء الإعداد');
+active=true;$('disconnect').disabled=false;$('state').textContent='متصل — بانتظار أول حزمة من الحساسات';
+try{receive(await characteristic.readValue())}catch(e){log('Initial read: '+e.message)}
+log('Live notifications enabled');
+}catch(e){log(e.name+': '+e.message);if(device?.gatt.connected)device.gatt.disconnect();$('state').textContent='تعذر الاتصال: '+e.message+' — أغلق أي تطبيق آخر متصل بالجهاز ثم جرّب مجددًا.';$('connect').disabled=false;$('disconnect').disabled=true}
+finally{busy=false}
+};
+$('disconnect').onclick=()=>{if(device?.gatt.connected)device.gatt.disconnect()};
+setInterval(()=>{if(active&&lastAt&&Date.now()-lastAt>15000){for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بيانات قديمة — لا تعتمد على التصنيف';$('state').textContent='الاتصال مفتوح لكن لا توجد عينات جديدة منذ أكثر من 15 ثانية'}},1000);
+if(!navigator.bluetooth)$('state').textContent='هذا المتصفح لا يدعم Web Bluetooth؛ افتح الصفحة في Google Chrome على الكمبيوتر.';
+</script></main></html>
