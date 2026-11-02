@@ -554,6 +554,19 @@ float max30102_sample_rate_enum_to_hz(max30102_spo2_sample_rate_t sample_rate)
     }
 }
 
+/*
+ * FIFO output is decimated by SMP_AVE, independently for RED and IR.
+ * Algorithm intervals count FIFO samples, not ADC conversions.
+ * ADI MAX30102 datasheet, FIFO Configuration 0x08, SMP_AVE[2:0].
+ */
+static float max30102_fifo_output_rate_hz(max30102_spo2_sample_rate_t adc_rate,
+                                          max30102_sample_average_t average)
+{
+    static const uint8_t divisors[8] = {1U, 2U, 4U, 8U, 16U, 32U, 32U, 32U};
+    const uint8_t encoded_average = ((uint8_t)average) & 0x07U;
+    return max30102_sample_rate_enum_to_hz(adc_rate) / (float)divisors[encoded_average];
+}
+
 float max30102_get_sample_rate_hz(const max30102_t *device)
 {
     /* Safe accessor used by app layer for algorithm initialization. */
@@ -673,7 +686,11 @@ esp_err_t max30102_init(max30102_t *device, const max30102_config_t *config)
     device->timeout_ms = (cfg.timeout_ms == 0U) ? MAX30102_TIMEOUT_DEFAULT_MS : cfg.timeout_ms;
     device->i2c_dev.address = cfg.address;
     device->i2c_dev.scl_speed_hz = 400000U;
-    device->sample_rate_hz = max30102_sample_rate_enum_to_hz(cfg.sample_rate);
+    device->sample_rate_hz = max30102_fifo_output_rate_hz(cfg.sample_rate, cfg.sample_average);
+    ESP_LOGI(TAG, "PPG rate: ADC=%.2f Hz FIFO/algorithm=%.2f Hz (SMP_AVE=%u)",
+             (double)max30102_sample_rate_enum_to_hz(cfg.sample_rate),
+             (double)device->sample_rate_hz, (unsigned)cfg.sample_average);
+    /* This timing correction does not validate waveform bandwidth or SpO2 calibration. */
 
     /* Probe confirms address ACK before full register configuration. */
     esp_err_t err = i2c_manager_probe(cfg.address, device->timeout_ms);
