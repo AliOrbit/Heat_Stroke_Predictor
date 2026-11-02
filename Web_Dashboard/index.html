@@ -2,12 +2,15 @@
 <html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Heat Stroke Predictor | BLE</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b1421;color:#edf4ff;font:16px system-ui;padding:32px}main{max-width:1100px;margin:auto}header{border-bottom:1px solid #2c4058;padding-bottom:24px}h1{direction:ltr;text-align:right;font-size:32px;margin:8px 0}p{color:#acbfd4;line-height:1.8}button{background:#65ead0;color:#09231f;border:0;border-radius:12px;padding:14px 23px;font:700 16px system-ui;cursor:pointer;margin:5px}button:disabled{opacity:.4;cursor:default}#disconnect{background:#283c54;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px;margin:24px 0}.card{background:#132236;border:1px solid #29405a;border-radius:18px;padding:22px}.value{font-size:32px;direction:ltr;text-align:right;margin-top:12px;font-weight:700}.unit,small{color:#a9bbcf;font-size:13px}.risk{border-right:5px solid #65ead0}#state{padding:14px;background:#182c43;border-radius:12px;margin-top:14px}pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#07101c;padding:16px;border-radius:12px;max-height:230px;overflow:auto;font-size:12px}summary{cursor:pointer}footer{color:#93a9c1;font-size:13px;line-height:1.8}@media(max-width:600px){body{padding:16px}h1{font-size:25px}}
+
+:root{color-scheme:dark}body{background:radial-gradient(ellipse at 85% 0%,#163947 0%,#0a111b 48%);padding:28px;color:#e7eff8}main{max-width:1320px}header{position:relative;padding:22px 26px;background:#101e2ce8;border:1px solid #29424e;border-radius:22px}header:before{content:"HSP / LIVE LAB";display:block;direction:ltr;text-align:right;color:#62dfc6;font:700 12px system-ui;letter-spacing:3px;margin-bottom:12px}h1{font-size:30px}header p{max-width:780px;font-size:14px}button{font-size:14px;padding:12px 22px;border-radius:10px}#state{font-size:14px;border:1px solid #294452;background:#132b35}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{background:linear-gradient(145deg,#142432,#101c29);border-color:#263e4d;padding:20px;border-radius:17px;min-width:0}.card small{font-size:14px}.value{font:600 38px system-ui;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1.5}.unit{display:block;direction:ltr;text-align:right}.meta{font-size:12px;color:#9cb0c0;margin-top:10px;line-height:1.8;min-height:22px}.card[data-id="spo2"],.card[data-id="hr"],.card[data-id="filtered"]{border-top:2px solid #63d8c1}.card[data-id="estimated"]{border-top:2px solid #e9b561}.section-title{margin:28px 4px 12px;font-size:18px}.pill{display:inline-block;border:1px solid #3e6062;background:#193b3c;padding:5px 12px;border-radius:30px;color:#95e9d6;font-size:12px}.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.tools button{background:#223a4a;color:#d9e8f5}.tools input{background:#0b1823;border:1px solid #375363;border-radius:9px;color:white;padding:11px;width:110px;font:inherit}.notice{background:#382c1a;border:1px solid #65502b;color:#f5d9a2;padding:16px;border-radius:14px;font-size:13px;line-height:1.9;margin-top:18px}canvas{width:100%;height:180px;display:block;margin-top:16px}#quality{font-size:13px}#historyLabel{color:#a7c2d0;font-size:12px}.risk{border-right-color:#e9b561}footer{margin-top:24px}.unit{unicode-bidi:isolate}#session{color:#9fb7c7;font-size:12px}#comparison{color:#bcd0df;font-size:13px;padding:8px}details{margin-top:18px}summary{padding:12px 0;color:#a7c2d0}@media(min-width:1050px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.value{font-size:40px}}@media(max-width:700px){body{padding:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:15px}.value{font-size:29px}header{padding:18px}h1{font-size:25px}}@media(max-width:390px){.grid{grid-template-columns:1fr}}
 </style><main>
 <header><small>جامعة السلطان قابوس · نموذج أولي · المشروع 93</small><h1>Heat Stroke Predictor</h1><p>مراقبة مباشرة للحساسات عبر Bluetooth LE. البيانات تبقى في هذا المتصفح ولا تُرسل إلى خادم.</p>
 <button id="connect">اتصال بالجهاز</button><button id="disconnect" disabled>قطع الاتصال</button><div id="state" role="status" aria-live="polite">غير متصل — شغّل الجهاز ثم اضغط اتصال.</div></header>
-<section class="grid" id="metrics"></section>
+<h2 class="section-title">القياسات الحية <span class="pill">BLE · قراءة مباشرة</span></h2><section class="grid" id="metrics"></section>
+<section class="card"><div class="tools"><strong>جلسة التحقق</strong><button id="export" disabled>تصدير CSV</button><button id="clear">جلسة جديدة</button><span id="session">0 عينة</span></div><p id="historyLabel">اتجاه SpO₂ من الحزم المستقبلة · لا توجد بيانات بعد</p><canvas id="history" aria-label="اتجاه الأكسجين في العينات المستقبلة"></canvas><div class="tools"><label for="reference">قراءة مرجع خارجي SpO₂</label><input id="reference" type="number" min="0" max="100" step="0.1" placeholder="مثال: 97"><button id="compare">سجّل مقارنة</button></div><div id="comparison" role="status">المقارنة توثّق الفرق فقط؛ لا تغيّر قراءة الجهاز. يُفضّل مرجع طبي موثوق.</div></section>
 <section class="card risk"><small>تصنيف الخطر المرسل من الجهاز</small><h2 id="risk">بانتظار البيانات</h2><p id="quality">لا توجد قراءة بعد.</p><small id="sample">—</small></section>
-<p>«غير متاحة» تعني أن الجهاز لم يرسل قيمة صالحة. درجة الحرارة المقدّرة ناتج نموذج الجهاز، وليست قياسًا مباشرًا لحرارة الجسم الداخلية.</p>
+<p class="notice">هذه النسخة لا تطبّق أي تصحيح أو زيادة على الأكسجين أو النبض. مؤشّر الجودة من خوارزمية الجهاز لا يساوي دقة طبية. «غير متاحة» تعني أن الجهاز لم يرسل قيمة صالحة. درجة الحرارة المقدّرة ناتج نموذج الجهاز، وليست قياسًا مباشرًا لحرارة الجسم الداخلية.</p>
 <details><summary>سجل الاتصال والتشخيص</summary><pre id="log"></pre></details>
 <footer>نموذج هندسي تجريبي؛ التصنيف المعروض من برنامج الجهاز، وليس تشخيصًا طبيًا. الصفحة تقرأ البيانات فقط ولا تغيّر إعدادات الجهاز أو التنبيهات.</footer>
 <script>
@@ -15,34 +18,36 @@
 const SERVICE='12345678-1234-5678-1234-56789abc0000';
 const LIVE='12345678-1234-5678-1234-56789abc0002';
 const fields=[
-['raw','حرارة الحساس الخام','°C',12,100,0,true],
-['filtered','حرارة الجسم المفلترة','°C',14,100,1,true],
-['estimated','حرارة الجسم المقدّرة','°C',16,100,2,true],
+['raw','حرارة التلامس الخام','°C',12,100,0,true],
+['filtered','حرارة التلامس المفلترة','°C',14,100,1,true],
+['estimated','تقدير حراري تجريبي','°C',16,100,2,true],
 ['ambient','درجة حرارة البيئة','°C',18,100,3,true],
 ['humidity','الرطوبة','%',20,100,4,false],
 ['pressure','الضغط الجوي','hPa',22,10,5,false],
 ['heat','مؤشر الحرارة','°C',24,100,6,true],
 ['hr','معدل نبض القلب','bpm',26,10,7,false],
 ['spo2','تشبع الأكسجين SpO₂','%',28,10,8,false]];
+const order=['spo2','hr','filtered','ambient','humidity','pressure','heat','raw','estimated'];fields.sort((a,b)=>order.indexOf(a[0])-order.indexOf(b[0]));
 const $=id=>document.getElementById(id);
-$('metrics').innerHTML=fields.map(f=>'<article class="card"><small>'+f[1]+'</small><div class="value" id="'+f[0]+'">—</div><span class="unit">'+f[2]+'</span></article>').join('');
+$('metrics').innerHTML=fields.map(f=>'<article class="card" data-id="'+f[0]+'"><small>'+f[1]+'</small><div class="value" id="'+f[0]+'">—</div><span class="unit">'+f[2]+'</span><div class="meta" id="meta-'+f[0]+'">بانتظار عينة من الجهاز</div></article>').join('');
+let rows=[],comparisons=[],latest=null;
 let device=null,characteristic=null,lastAt=0,lastCounter=null,busy=false,active=false,token=0;
 function log(s){$('log').textContent=(new Date().toLocaleTimeString()+' '+s+'\n'+$('log').textContent).slice(0,12000)}
-function reset(){lastAt=0;lastCounter=null;for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بانتظار بيانات جديدة';$('quality').textContent='لا توجد قراءة حديثة.';$('sample').textContent='—'}
+function reset(){lastAt=0;lastCounter=null;latest=null;for(const f of fields)$('meta-'+f[0]).textContent='بانتظار عينة جديدة';for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بانتظار بيانات جديدة';$('quality').textContent='لا توجد قراءة حديثة.';$('sample').textContent='—'}
 function decodeLive(v){
 if(v.byteLength!==48)throw Error('حزمة غير متوافقة: '+v.byteLength+' بايت؛ المتوقع 48');
 if(v.getUint8(0)!==1)throw Error('إصدار بروتوكول غير مدعوم: '+v.getUint8(0));
 const flags=v.getUint32(44,true),values={};
 for(const f of fields){const raw=f[6]?v.getInt16(f[3],true):v.getUint16(f[3],true);values[f[0]]=(flags&(1<<f[5]))&&raw!==(f[6]?-32768:65535)?raw/f[4]:null}
-return {values,flags,counter:v.getUint32(4,true),timestamp:v.getUint32(8,true),category:v.getUint8(40),contact:v.getUint8(32),hrReason:v.getUint8(33),spo2Reason:v.getUint8(34),bodyContact:v.getUint8(35),saturation:v.getUint8(42)!==0};
+return {values,flags,counter:v.getUint32(4,true),timestamp:v.getUint32(8,true),category:v.getUint8(40),contact:v.getUint8(32),hrReason:v.getUint8(33),spo2Reason:v.getUint8(34),bodyContact:v.getUint8(35),saturation:v.getUint8(42)!==0,hrConfidence:(flags&(1<<9))?v.getUint8(30):null,spo2Confidence:(flags&(1<<10))?v.getUint8(31):null};
 }
 function receive(v){
 try{
-const d=decodeLive(v);if(d.counter===lastCounter)return;lastCounter=d.counter;lastAt=Date.now();
+const d=decodeLive(v);if(d.counter===lastCounter)return;lastCounter=d.counter;lastAt=Date.now();latest=d;record(d);
 for(const f of fields)$(f[0]).textContent=d.values[f[0]]===null?'غير متاحة':d.values[f[0]].toFixed(f[0]==='pressure'||f[0]==='hr'||f[0]==='spo2'?1:2);
-$('state').textContent='متصل — وصلت بيانات من الجهاز';
+updateQuality(d);$('state').textContent='متصل — وصلت بيانات من الجهاز';
 const needed=(1<<2)|(1<<6)|(1<<7),complete=(d.flags&needed)===needed&&d.values.estimated!==null&&d.values.heat!==null&&d.values.hr!==null;
-$('risk').textContent=(['طبيعي','متوسط','مرتفع','مرتفع جدًا'][d.category]||'تصنيف غير معروف')+(complete?'':' — مدخلات ناقصة');
+$('risk').textContent=(['طبيعي','متوسط','مرتفع','مرتفع جدًا'][d.category]||'تصنيف غير معروف')+(complete?' — نموذج تجريبي غير متحقق':' — مدخلات ناقصة');
 const reasons=['لا يوجد خطأ','لا يوجد تلامس','تلامس ضعيف','عينات غير كافية','إشارة ضعيفة','إشارة مشبعة','إشارة مشوشة','نبضات غير مستقرة','نسبة غير صالحة'];
 $('quality').textContent='تلامس حساس النبض: '+(['غير معروف','لا يوجد','ضعيف','صالح'][d.contact]||'غير معروف')+' | النبض: '+(reasons[d.hrReason]||d.hrReason)+' | الأكسجين: '+(reasons[d.spo2Reason]||d.spo2Reason)+(d.saturation?' | تشبع إشارة الحساس':'');
 $('sample').textContent='العينة '+d.counter+' · زمن الجهاز '+(d.timestamp/1000).toFixed(1)+' ثانية · آخر وصول '+new Date(lastAt).toLocaleTimeString();
@@ -72,6 +77,48 @@ log('Live notifications enabled');
 finally{busy=false}
 };
 $('disconnect').onclick=()=>{if(device?.gatt.connected)device.gatt.disconnect()};
-setInterval(()=>{if(active&&lastAt&&Date.now()-lastAt>15000){for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بيانات قديمة — لا تعتمد على التصنيف';$('state').textContent='الاتصال مفتوح لكن لا توجد عينات جديدة منذ أكثر من 15 ثانية'}},1000);
+setInterval(()=>{if(active&&lastAt&&Date.now()-lastAt>15000){latest=null;for(const f of fields)$('meta-'+f[0]).textContent='انتهت صلاحية التحديث';for(const f of fields)$(f[0]).textContent='—';$('risk').textContent='بيانات قديمة — لا تعتمد على التصنيف';$('state').textContent='الاتصال مفتوح لكن لا توجد عينات جديدة منذ أكثر من 15 ثانية'}},1000);
 if(!navigator.bluetooth)$('state').textContent='هذا المتصفح لا يدعم Web Bluetooth؛ افتح الصفحة في Google Chrome على الكمبيوتر.';
+
+function updateQuality(d){
+for(const f of fields)$('meta-'+f[0]).textContent=d.values[f[0]]===null?'الجهاز لم يرسل قراءة صالحة':'قيمة من الجهاز · دون تصحيح إضافي';
+for(const id of ['hr','spo2']){
+const reason=id==='hr'?d.hrReason:d.spo2Reason,confidence=id==='hr'?d.hrConfidence:d.spo2Confidence;
+$('meta-'+id).textContent='مؤشر الخوارزمية: '+(confidence===null?'غير متاح':confidence+' / 100')+' · '+(d.contact===3&&!d.saturation&&reason===0?'تلامس صالح حسب الجهاز':'جودة إشارة تحتاج مراجعة')+' · غير معاير';
+}
+$('meta-filtered').textContent='قراءة حساس التلامس؛ ليست حرارة الجسم الداخلية';
+$('meta-raw').textContent='القياس قبل الترشيح';
+$('meta-estimated').textContent='تقدير برنامج الجهاز بتعويض البيئة؛ غير متحقق سريريًا';
+$('meta-heat').textContent='مؤشر مشتق من حرارة البيئة والرطوبة';
+}
+function record(d){
+rows.push({at:new Date().toISOString(),...d});if(rows.length>3600)rows.shift();
+$('export').disabled=false;$('session').textContent=rows.length+' عينة · آخر 3600 عينة كحد أقصى';drawHistory();
+}
+function drawHistory(){
+const c=$('history'),ctx=c.getContext('2d');c.width=Math.max(300,c.clientWidth*devicePixelRatio);c.height=180*devicePixelRatio;
+const w=c.width,h=c.height,p=24*devicePixelRatio;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#274150';ctx.lineWidth=devicePixelRatio;
+for(let i=0;i<4;i++){const y=p+(h-2*p)*i/3;ctx.beginPath();ctx.moveTo(p,y);ctx.lineTo(w-p,y);ctx.stroke()}
+const data=rows.slice(-120),ys=data.map(r=>r.values.spo2).filter(v=>v!==null);if(!ys.length){$('historyLabel').textContent='اتجاه SpO₂ · لا توجد قراءات أكسجين صالحة للرسم';return}
+const min=Math.floor(Math.min(...ys)-1),max=Math.ceil(Math.max(...ys)+1);
+$('historyLabel').textContent='SpO₂ · آخر '+data.length+' عينة · محور رأسي '+min+'–'+max+'% · هذا اتجاه القيم وليس موجة PPG';
+ctx.strokeStyle='#63dfc5';ctx.lineWidth=2*devicePixelRatio;ctx.beginPath();let gap=true;
+data.forEach((r,i)=>{const v=r.values.spo2;if(v===null){gap=true;return}const x=p+i/Math.max(1,data.length-1)*(w-2*p),y=h-p-(v-min)/(max-min)*(h-2*p);if(gap)ctx.moveTo(x,y);else ctx.lineTo(x,y);gap=false;});ctx.stroke();
+}
+$('clear').onclick=()=>{rows=[];comparisons=[];$('export').disabled=true;$('session').textContent='0 عينة';$('comparison').textContent='جلسة جديدة؛ لم تتغير إعدادات الجهاز.';drawHistory()};
+$('compare').onclick=()=>{
+const text=$('reference').value,n=Number(text);
+if(!text||!Number.isFinite(n)||n<0||n>100){$('comparison').textContent='أدخل قراءة مرجع بين 0 و100.';return}
+if(!latest||!lastAt||Date.now()-lastAt>15000||latest.values.spo2===null){$('comparison').textContent='انتظر قراءة أكسجين حديثة وصالحة قبل المقارنة.';return}
+const diff=latest.values.spo2-n;comparisons.push({at:new Date().toISOString(),sample:latest.counter,device:latest.values.spo2,reference:n,difference:diff});
+$('comparison').textContent='تم تسجيل: الجهاز '+latest.values.spo2.toFixed(1)+'% | المرجع '+n.toFixed(1)+'% | الفرق '+diff.toFixed(1)+' نقطة مئوية. هذه ليست معايرة.';
+};
+$('export').onclick=()=>{
+if(!rows.length)return;
+const head=['received_at','sample','device_ms',...fields.map(f=>f[0]),'hr_quality_score','spo2_quality_score','ppg_contact','hr_reason','spo2_reason','body_contact','saturation','flags','device_risk_category','reference_spo2','difference_percentage_points'];
+const lines=rows.map(r=>{const ref=comparisons.filter(c=>c.sample===r.counter).at(-1);return [r.at,r.counter,r.timestamp,...fields.map(f=>r.values[f[0]]??''),r.hrConfidence??'',r.spo2Confidence??'',r.contact,r.hrReason,r.spo2Reason,r.bodyContact,r.saturation,r.flags,r.category,ref?.reference??'',ref?.difference??''].join(',')});
+const blob=new Blob(['\ufeff'+head.join(',')+'\r\n'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='HSP-session-'+Date.now()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+window.addEventListener('resize',drawHistory);drawHistory();
 </script></main></html>
